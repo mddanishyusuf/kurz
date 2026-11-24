@@ -240,6 +240,102 @@ function Tokens() {
   );
 }
 
+function Snippet({ label, value, copyLabel = "Copy", prompt = false }: { label: string; value: string; copyLabel?: string; prompt?: boolean }) {
+  return (
+    <div class={`code-block${prompt ? " code-block--prompt" : ""}`}>
+      <div class="code-block-head">
+        <span>{label}</span>
+        <CopyButton text={value} label={copyLabel} />
+      </div>
+      <pre>{value}</pre>
+    </div>
+  );
+}
+
+const API_ENDPOINTS: [string, string, string][] = [
+  ["GET", "/_/api/links", "q, tag, domain, status (active, expired, disabled), sort (newest, oldest, clicks), page, limit"],
+  ["POST", "/_/api/links", "url is required. Optional: slug, domain, title, tags, redirect_type, password, expires_at, expired_url, max_clicks, rules, og_title, og_description, og_image"],
+  ["POST", "/_/api/links/bulk", '{ "links": [...] }, up to 100 per request'],
+  ["GET · PATCH · DELETE", "/_/api/links/:id", "PATCH takes any field from create, plus disabled"],
+  ["GET", "/_/api/links/:id/stats", "days (1–365), tz (minutes, as from getTimezoneOffset())"],
+  ["GET", "/_/api/links/export", "CSV"],
+  ["GET", "/_/api/stats", "Overview across all links"],
+  ["GET · POST · PATCH · DELETE", "/_/api/domains[/:id]", ""],
+  ["GET", "/_/api/tags", ""],
+];
+
+function agentPrompt(base: string) {
+  return [
+    "You are adding short links to my website using the Kurz link shortener API.",
+    "",
+    `Kurz base URL: ${base}/_/api`,
+    'Authentication: send "Authorization: Bearer <token>" on every request. The token starts with "kurz_" and I will provide it. Keep it in a server-side environment variable. Never put it in browser or client-side code.',
+    "",
+    "Endpoints (JSON):",
+    `- POST ${base}/_/api/links: create a link. Required: "url". Optional: "slug", "domain", "title", "tags" (array), "expires_at" (epoch ms or null), "max_clicks", "redirect_type" (301 or 302), "password", "rules". The response includes "short_url", which is the value to use.`,
+    `- POST ${base}/_/api/links/bulk: body { "links": [...] }, up to 100 links per request.`,
+    `- GET ${base}/_/api/links?q=&tag=&status=active|expired|disabled&sort=newest|oldest|clicks&page=1&limit=50: search links.`,
+    `- PATCH ${base}/_/api/links/:id: update any create field, or send { "disabled": true }.`,
+    `- DELETE ${base}/_/api/links/:id: delete a link.`,
+    `- GET ${base}/_/api/links/:id/stats?days=30&tz=0: click statistics.`,
+    "",
+    "Integration rules:",
+    "1. Write one server-side helper, for example shortenUrl(longUrl), that calls the create endpoint and returns short_url.",
+    "2. Call it only from the server (an API route, server action or backend job). Do not call it on every page render.",
+    "3. Store the returned short_url alongside the original content so the same URL is not shortened twice.",
+    "4. Set a request timeout. If Kurz fails, log the error and fall back to the original URL so the page still works.",
+    "5. On a non-2xx response, read the error message from the body and surface it. Do not retry in a loop.",
+    "",
+    "Deliver: the helper code, the environment variable name, and one curl command I can run to test it.",
+  ].join("\n");
+}
+
+function ApiDocs() {
+  const base = location.origin;
+  const createLink = `curl -X POST ${base}/_/api/links \\
+  -H "Authorization: Bearer kurz_…" \\
+  -H "Content-Type: application/json" \\
+  -d '{"url":"https://example.com/launch","slug":"launch","tags":["social"]}'`;
+  const searchLinks = `curl "${base}/_/api/links?q=launch&limit=20" \\
+  -H "Authorization: Bearer kurz_…"`;
+  return (
+    <div class="card card-pad api-doc" id="api">
+      <h2>API</h2>
+      <p class="sub">Create a token in API tokens above, then send it as a Bearer header.</p>
+      <div class="stack">
+        <h3>Create a link</h3>
+        <Snippet label="POST" value={createLink} />
+        <h3>Search links</h3>
+        <Snippet label="GET" value={searchLinks} />
+        <h3>All endpoints</h3>
+        <div class="api-table-wrap">
+          <table class="api-table">
+            <thead>
+              <tr><th>Method</th><th>Path</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              {API_ENDPOINTS.map(([method, path, notes]) => (
+                <tr key={path}>
+                  <td><code>{method}</code></td>
+                  <td><code>{path}</code></td>
+                  <td>{notes}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p>
+          A targeting rule looks like <code>{`{ "type": "os" | "device" | "country", "value": "ios" | "mobile" | "us,ca", "url": "https://…" }`}</code>.
+          The first rule that matches wins.
+        </p>
+        <h3>Use with an AI agent</h3>
+        <p>Paste this prompt into an AI coding agent to have it add Kurz short links to another site. Your token is not included.</p>
+        <Snippet label="Agent prompt" value={agentPrompt(base)} copyLabel="Copy prompt" prompt />
+      </div>
+    </div>
+  );
+}
+
 const COLUMNS = ["url", "slug", "domain", "title", "tags", "redirect_type", "expires_at"];
 
 function ImportExport() {
@@ -314,6 +410,7 @@ export function SettingsPage() {
           <Cloudflare s={s.data} reload={s.reload} />
           <Account s={s.data} reload={s.reload} />
           <Tokens />
+              <ApiDocs />
           <ImportExport />
         </div>
       )}

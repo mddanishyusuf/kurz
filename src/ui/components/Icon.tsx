@@ -21,6 +21,7 @@ const PATHS: Record<string, string> = {
   upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
   key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
   back: '<path d="m15 18-6-6 6-6"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
   ban: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
   play: '<path d="m6 3 14 9-14 9V3z"/>',
   target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
@@ -53,9 +54,9 @@ export function Icon({ name, size = 16 }: { name: keyof typeof PATHS | string; s
 export function Logo({ size = 26 }: { size?: number }) {
   return (
     <svg class="logo" width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="8" fill="#f9f9f9" />
+      <rect width="32" height="32" rx="8" fill="#17211d" />
       <g fill="none" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M10.5 8v16M14 16l8 8" stroke="#0d0d0d" />
+        <path d="M10.5 8v16M14 16l8 8" stroke="#ffffff" />
         <path d="M14 16l8.5-8.5M16.5 7.5h6v6" stroke="#3a83f7" />
       </g>
     </svg>

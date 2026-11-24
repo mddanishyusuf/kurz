@@ -1,12 +1,12 @@
 import { render } from "preact";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import "@fontsource-variable/mona-sans";
 import "@fontsource-variable/geist-mono";
 import "./styles.css";
 import { api, setUnauthorizedHandler } from "./lib/api";
 import { Link, navigate, usePath } from "./lib/router";
 import { Icon, Logo } from "./components/Icon";
-import { Menu, Spinner, Toasts } from "./components/ui";
+import { Spinner, Toasts } from "./components/ui";
 import { Forgot, Login, Reset, Setup } from "./pages/Auth";
 import { LinksPage } from "./pages/Links";
 import { AnalyticsPage, LinkDetailPage } from "./pages/Stats";
@@ -21,6 +21,62 @@ const NAV = [
   { href: "/domains", label: "Domains", icon: "globe", match: (p: string) => p.startsWith("/domains") },
   { href: "/settings", label: "Settings", icon: "sliders", match: (p: string) => p.startsWith("/settings") },
 ];
+
+function NavItem({ entry, path }: { entry: (typeof NAV)[number]; path: string }) {
+  const active = entry.match(path);
+  return (
+    <Link href={entry.href} class={`nav-item${active ? " is-active" : ""}`} aria-current={active ? "page" : undefined}>
+      <span class="nav-icon" aria-hidden="true"><Icon name={entry.icon} size={17} /></span>
+      <span>{entry.label}</span>
+    </Link>
+  );
+}
+
+function AccountMenu({ email, onLogout }: { email: string | null; onLogout: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div class="account-menu" ref={ref}>
+      <button type="button" class="account-button" aria-expanded={open} aria-label="Account menu" title="Account menu" onClick={() => setOpen(!open)}>
+        <span class="avatar">{(email ?? "A")[0]}</span>
+        <span class="account-chevron" aria-hidden="true"><Icon name="chevron" size={13} /></span>
+      </button>
+      {open && (
+        <div class="account-popover">
+          <p class="popover-label">Kurz</p>
+          <div class="popover-user">
+            <strong>Admin</strong>
+            <small>{email ?? ""}</small>
+          </div>
+          <span class="popover-sep" aria-hidden="true" />
+          <a href="https://github.com/mddanishyusuf/kurz#api" target="_blank" rel="noopener" onClick={() => setOpen(false)}>
+            <Icon name="book" size={14} /> API docs
+          </a>
+          <button type="button" onClick={() => { setOpen(false); onLogout(); }}>
+            <Icon name="logout" size={14} /> Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Shell({ path, email, onLogout }: { path: string; email: string | null; onLogout: () => void }) {
   const linkMatch = path.match(/^\/links\/(\d+)/);
@@ -38,38 +94,28 @@ function Shell({ path, email, onLogout }: { path: string; email: string | null; 
 
   return (
     <div class="app">
-      <header class="topbar">
-        <div class="topbar-inner">
-          <Link href="/" class="brand"><Logo /> Kurz</Link>
-          <nav class="tabs" aria-label="Main">
-            {NAV.map((n) => (
-              <Link key={n.href} href={n.href} class={n.match(path) ? "active" : ""} aria-current={n.match(path) ? "page" : undefined}>
-                {n.label}
-              </Link>
-            ))}
+      <div class="header-shell">
+        <header class="app-header">
+          <Link href="/" class="header-brand" aria-label="Kurz home">
+            <Logo size={28} />
+          </Link>
+          <span class="header-divider" aria-hidden="true" />
+          <nav class="top-nav" aria-label="Main">
+            {NAV.map((n) => <NavItem key={n.href} entry={n} path={path} />)}
           </nav>
-          <div class="top-actions">
+          <span class="header-divider" aria-hidden="true" />
+          <div class="header-actions">
             <a class="icon-btn" href="https://github.com/mddanishyusuf/kurz" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub">
-              <Icon name="github" size={18} />
+              <Icon name="github" size={16} />
             </a>
-            <Menu label="Account" btnClass="avatar-btn" trigger={<span class="avatar">{(email ?? "A")[0]}</span>}>
-              {(close) => (
-                <>
-                  <div class="menu-head">
-                    <b>Admin</b>
-                    <span>{email ?? ""}</span>
-                  </div>
-                  <a href="https://github.com/mddanishyusuf/kurz#api" target="_blank" rel="noopener" onClick={close}>
-                    <Icon name="book" /> API docs
-                  </a>
-                  <button onClick={() => { close(); logout(); }}><Icon name="logout" /> Sign out</button>
-                </>
-              )}
-            </Menu>
+            <AccountMenu email={email} onLogout={logout} />
           </div>
-        </div>
-      </header>
+        </header>
+      </div>
       <main key={path}>{page}</main>
+      <nav class="mobile-tabbar" aria-label="Main">
+        {NAV.map((n) => <NavItem key={n.href} entry={n} path={path} />)}
+      </nav>
     </div>
   );
 }
